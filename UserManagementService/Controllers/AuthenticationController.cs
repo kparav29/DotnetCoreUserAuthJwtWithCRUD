@@ -28,7 +28,7 @@ namespace UserManagementService.Controllers
             configuration = _configuration;
         }
 
-        [HttpPost]
+        [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginModel loginModel) {
 
             var user = await userManager.FindByNameAsync(loginModel.Username);
@@ -67,8 +67,7 @@ namespace UserManagementService.Controllers
             return Unauthorized();
         }
 
-        [HttpPost]
-        [Route("register")]
+        [HttpPost("register")]       
         public async Task<IActionResult> Register([FromBody] RegisterModel model)
         {
             var userExists = await userManager.FindByNameAsync(model.Username);
@@ -107,7 +106,7 @@ namespace UserManagementService.Controllers
                 return BadRequest("Invalid access token or refresh token");
             }
 
-            string username = principal.Identity.Name;
+            string username = principal.Identity?.Name;
 
             var user = await userManager.FindByNameAsync(username);
 
@@ -129,8 +128,7 @@ namespace UserManagementService.Controllers
             });
         }
 
-        [HttpPost]
-        [Route("register-admin")]
+        [HttpPost("register-admin")]  
         public async Task<IActionResult> RegisterAdmin([FromBody] RegisterModel model)
         {
             var userExists = await userManager.FindByNameAsync(model.Username);
@@ -148,18 +146,13 @@ namespace UserManagementService.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "User creation failed! Please check user details and try again." });
 
             if (!await roleManager.RoleExistsAsync(UserRoles.Admin.ToString()))
-                await roleManager.CreateAsync(new IdentityRole(UserRoles.Admin.ToString()));
-            if (!await roleManager.RoleExistsAsync(UserRoles.User.ToString()))
-                await roleManager.CreateAsync(new IdentityRole(UserRoles.User.ToString()));
+                await roleManager.CreateAsync(new IdentityRole(UserRoles.Admin.ToString()));         
 
             if (await roleManager.RoleExistsAsync(UserRoles.Admin.ToString()))
             {
                 await userManager.AddToRoleAsync(user, UserRoles.Admin.ToString());
             }
-            if (await roleManager.RoleExistsAsync(UserRoles.Admin.ToString()))
-            {
-                await userManager.AddToRoleAsync(user, UserRoles.User.ToString());
-            }
+         
             return Ok(new Response { Status = "Success", Message = "User created successfully!" });
         }
 

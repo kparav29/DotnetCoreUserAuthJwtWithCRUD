@@ -8,7 +8,7 @@ namespace UserManagementService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    // [Authorize(Roles = "SuperAdmin")]
+    [Authorize(AuthenticationSchemes = "Bearer")]
     public class RolesController : ControllerBase
     {
 
@@ -51,17 +51,17 @@ namespace UserManagementService.Controllers
 
         }
 
-        [HttpPost("UpdateRole{rolename}")]
-        public async Task<IActionResult> UpdateRole(string rolename)
+        [HttpPost("UpdateRole{originalRoleName}/{newRolename}")]
+        public async Task<IActionResult> UpdateRole(string originalRoleName,string newRolename)
         {
-            if (string.IsNullOrEmpty(rolename))
+            if (string.IsNullOrEmpty(originalRoleName))
                 return new NotFoundResult();
 
             // Check if the role already exists
-            var roleExists = await roleManager.FindByNameAsync(rolename);
+            var roleExists = await roleManager.FindByNameAsync(originalRoleName);
             if (roleExists !=null)
             {
-                roleExists.Name = rolename;
+                roleExists.Name = newRolename;
                 await roleManager.UpdateAsync(roleExists);             
                
             }
