@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Globalization;
 using System.Text;
+using UserManagementService.CustomMiddileware;
 using UserManagementService.EntityInfra;
 using UserManagementService.Identity.Models;
 
@@ -15,13 +16,24 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
+builder.Services.AddSingleton<AuthorizationMiddleware>();
+
+
 builder.Services.AddControllers();
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(option => {
+
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(option => {
     option.SaveToken = true;
+    option.Authority = "https://localhost:44342";
     option.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters()
     {
-
-        ValidateAudience = true,
+       
+    ValidateAudience = false,
         ValidateIssuer = true,
         ValidateIssuerSigningKey = true,
         ValidateLifetime = true,
@@ -30,6 +42,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
     };
 });
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(s =>
@@ -79,6 +92,7 @@ builder.Services.AddCors(options =>
 
 
 var app = builder.Build();
+app.UseAuthorizationMiddleware();
 
 app.UseStaticFiles();
 
@@ -111,8 +125,12 @@ app.UseSwaggerUI(c =>
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.UseRouting();
 app.UseAuthorization();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+});
 
-app.MapControllers();
-
+app.UseAuthorizationMiddleware();
 app.Run();
