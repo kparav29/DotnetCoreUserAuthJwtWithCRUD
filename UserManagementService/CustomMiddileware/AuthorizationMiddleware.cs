@@ -1,35 +1,55 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using UserManagementService.EntityInfra;
 using UserManagementService.ErrorResponse;
+using UserManagementService.Identity.Models;
 
 namespace UserManagementService.CustomMiddileware
 {
     // You may need to install the Microsoft.AspNetCore.Http.Abstractions package into your project
-    public class AuthorizationMiddleware
+    public class AuthorizationMiddleware: IMiddleware
     {
-        private readonly RequestDelegate _next;
-
-        public AuthorizationMiddleware(RequestDelegate next)
+        public AuthorizationMiddleware()
         {
-            _next = next;
-        }
-        public async Task InvokeAsync(HttpContext httpContext, RequestDelegate next)
 
+        }
+        public async Task  InvokeAsync(HttpContext httpContext, RequestDelegate _next)
         {
             string? token = httpContext.Request.Headers["Authentication"].FirstOrDefault()?.Split(" ")[1];
+
 
             if (string.IsNullOrEmpty(token))
             {
                 if (IsEnabledUnauthorizedRoute(httpContext))
                 {
-                     await _next(httpContext);
+                    await _next(httpContext);
+                    return;
+                }
+
+                httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
+                await httpContext.Response.WriteAsJsonAsync(new ErrorResponseModel(Helper.ResponseCode.Unauthorized, "Unauthorize: Access denied"));
+                await httpContext.Response.CompleteAsync();
+                return;
+
+
+            }
+            else
+            {
+                if (ValidateJwtToken(token, httpContext))
+                {
+
+                    await _next(httpContext);
+
                     return;
                 }
 
@@ -37,13 +57,8 @@ namespace UserManagementService.CustomMiddileware
                 await httpContext.Response.WriteAsJsonAsync(new ErrorResponseModel(Helper.ResponseCode.Unauthorized, "Unauthorize: Access denied"));
 
             }
-            else
-            {
 
-
-            }
-           
-            await next(httpContext);
+            await _next(httpContext);
         }
 
 
@@ -61,7 +76,8 @@ namespace UserManagementService.CustomMiddileware
                  "/api/User/GetUser",
                 "/api/Roles/AddRole",
                "/api/Roles/DeleteRole",
-               "/api/Roles/UpdateRole"
+               "/api/Roles/UpdateRole",
+               "/api/Authentication"
             };
 
             bool isEnableUnauthorizedRoute = false;
@@ -72,15 +88,17 @@ namespace UserManagementService.CustomMiddileware
 
             return isEnableUnauthorizedRoute;
         }
-        private bool ValidateJwtToken(string jwt)
+        private bool ValidateJwtToken(string jwt, HttpContext httpContext)
         {
             JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
-            //byte[] key = Encoding.ASCII.GetBytes(secret);
+            byte[] key = Encoding.ASCII.GetBytes("060A4B861C724C72A27972B79EC84475");
+
+            
 
             TokenValidationParameters validationParameters = new TokenValidationParameters()
             {
                 ValidateIssuerSigningKey = true,
-               // IssuerSigningKey = new SymmetricSecurityKey("key"),
+                IssuerSigningKey = new SymmetricSecurityKey(key),
                 ValidateIssuer = false,
                 ValidateAudience = false,
                 ClockSkew = TimeSpan.Zero
@@ -90,42 +108,39 @@ namespace UserManagementService.CustomMiddileware
             JwtSecurityToken validatedJWT = (JwtSecurityToken)validatedToken;
 
             // get claims
-            long userId = long.Parse(validatedJWT.Claims.First(claim => claim.Type == "user_id").Value);
+            string userId = validatedJWT.Claims.First(claim => claim.Type == ClaimTypes.Name).Value;
 
-            //using (App dbContext = new ApplicationDbContext())
-            //{
+            var userManager = httpContext.RequestServices.GetService<UserManager<AppUser>>();
 
-            //    UserModel? user = dbContext.User.FirstOrDefault(u => u.id = userId);
+            var user = userManager.Users.FirstOrDefault(u => u.UserName == userId);
 
-            //    if (user = null)
-            //    {
+            if (user == null)
+            {
 
-                  return false;
-            //    }
-            //    else
-            //    {
-            //        // check is the given token is the last issued token to the user
-            //        LoginDetailModel loginDetail = dbContext.LoginDetails.Where(ld => ld.user_id = userId).First();
+                return false;
+            }
+            else
+            {
+                // check is the given token is the last issued token to the user
+                var loginDetail = userManager.Users.Where(ld => ld.UserName == userId).First();
 
-            //        // login detail must available
+                // login detail must available
 
-            //        if (loginDetail.token != jwt)
-            //        {
+                if (httpContext.GetTokenAsync("access_token").Result?.ToString() != jwt)
+                {
 
-            //            return false;
-            //        }
+                    return false;
+                }
 
-            //        else
-            //        {
+                else
+                {
+                    //  token is valid and latest token
+                    return true;
+                }
 
-            //            // token is valid and latest token
-            //            return true;
-            //        }
-            //    }
-            //}
+            }
         }
     }
-
         // Extension method used to add the middleware to the HTTP request pipeline.
         public static class AuthorizationMiddlewareExtensions
         {

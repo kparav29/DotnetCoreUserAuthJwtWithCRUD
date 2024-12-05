@@ -8,7 +8,7 @@ namespace UserManagementService.ErrorResponse
         public string message { get; set; }
         public ErrorResponseModel(ResponseCode responsecode, string message) { 
            responseCode = responsecode;
-            message = message;
+            this.message = message;
         }
 
 

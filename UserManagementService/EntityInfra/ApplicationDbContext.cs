@@ -15,6 +15,6 @@ namespace UserManagementService.EntityInfra
         {
             base.OnModelCreating(builder);
         }
-       // public DbSet<AppUser> Users { get; set;}
+     
     }
 }

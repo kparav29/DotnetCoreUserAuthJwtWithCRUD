@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -16,7 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddSingleton<AuthorizationMiddleware>();
+
 
 
 builder.Services.AddControllers();
@@ -90,9 +91,12 @@ builder.Services.AddCors(options =>
                       });
 });
 
+builder.Services.AddTransient<AuthorizationMiddleware>();
+builder.Services.AddScoped<CultureMiddleware>();
+
 
 var app = builder.Build();
-app.UseAuthorizationMiddleware();
+
 
 app.UseStaticFiles();
 
@@ -123,14 +127,16 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseHttpsRedirection();
-
-app.UseAuthentication();
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.UseEndpoints(endpoints =>
 {
     endpoints.MapControllers();
 });
 
 app.UseAuthorizationMiddleware();
+
+
 app.Run();

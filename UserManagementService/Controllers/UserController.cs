@@ -21,7 +21,7 @@ namespace UserManagementService.Controllers
         public UserController(UserManager<AppUser> _userManager, RoleManager<IdentityRole> _roleManager)
         {
             userManager = _userManager;
-            roleManager = _roleManager;
+            roleManager = _roleManager;           
         }
 
         [HttpPost("CreateUser")]
